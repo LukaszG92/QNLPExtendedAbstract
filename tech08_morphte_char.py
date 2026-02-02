@@ -1,0 +1,66 @@
+from __future__ import annotations
+import os
+from common import (
+    build_common_argparser, cfg_from_args, load_tweeteval_sentiment,
+    morphte_char_angles, make_qnode_angle, run_and_save
+)
+
+def main():
+    p = build_common_argparser("(8) MorphTE-inspired: subword/char n-gram angles")
+    args = p.parse_args()
+    cfg = cfg_from_args(args)
+
+    outdir = args.outdir
+    os.makedirs(outdir, exist_ok=True)
+    results_csv = os.path.join(outdir, "results_checklist_all_methods.csv")
+    results_json = os.path.join(outdir, "results_checklist_all_methods.json")
+
+    data = load_tweeteval_sentiment()
+    prep = morphte_char_angles(
+        data["X_text_train"], data["X_text_val"], data["X_text_test"],
+        n_qubits=cfg.n_qubits,
+        char_ngram_range=cfg.char_ngram_range,
+        min_df=cfg.min_df,
+        max_df=cfg.max_df,
+        random_state=cfg.random_state,
+        cache_dir=args.cache_dir,
+    )
+
+    qnode = make_qnode_angle(
+        n_qubits=cfg.n_qubits,
+        rot_mode=cfg.rot_mode,
+        axis=cfg.axis,
+        entangler=cfg.entangler,
+        topology=cfg.topology,
+        ent_pattern="linear",
+        L=1,
+        readout_mode="Z",
+        device_name=cfg.device_name,
+        shots=cfg.shots,
+    )
+
+    row = run_and_save(
+        technique_name=f"(8) morphte-proxy char_wb ngrams={cfg.char_ngram_range} + angle + linear entanglement | readout=Z",
+        qnode=qnode,
+        X_train_in=prep["X_train_char_ang"],
+        X_val_in=prep["X_val_char_ang"],
+        X_test_in=prep["X_test_char_ang"],
+        y_train=data["y_train"],
+        y_val=data["y_val"],
+        y_test=data["y_test"],
+        q=cfg.n_qubits,
+        L=1,
+        entanglement_pattern_label=f"linear({cfg.topology},{cfg.entangler})",
+        feature_dim=cfg.n_qubits,
+        results_csv=results_csv,
+        results_json=results_json,
+        preproc_time_s=prep["preproc_time_s"],
+        pattern_for_proxy="linear",
+        topology=cfg.topology,
+        rot_mode=cfg.rot_mode,
+        block_size_for_proxy=2,
+    )
+    print("Saved:", row)
+
+if __name__ == "__main__":
+    main()
