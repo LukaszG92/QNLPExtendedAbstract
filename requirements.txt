@@ -3,3 +3,5 @@ pandas
 scikit-learn
 datasets
 pennylane
+word2ket
+gpytorch==1.8.1

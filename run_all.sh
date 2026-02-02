@@ -4,11 +4,64 @@ set -euo pipefail
 OUTDIR="${1:-runs}"
 CACHEDIR="${2:-cache}"
 
-python tech01_angle_linear.py --outdir "$OUTDIR" --cache_dir "$CACHEDIR"
-python tech02_angle_full_entanglement.py --outdir "$OUTDIR" --cache_dir "$CACHEDIR"
-python tech03_angle_reuploading.py --outdir "$OUTDIR" --cache_dir "$CACHEDIR" --L 3
-python tech04_rich_readout.py --outdir "$OUTDIR" --cache_dir "$CACHEDIR"
-python tech05_amplitude_hashing.py --outdir "$OUTDIR" --cache_dir "$CACHEDIR" --q_amp 6
-python tech06_light_compression.py --outdir "$OUTDIR" --cache_dir "$CACHEDIR" --k_base 0 --q_amp 6
-python tech07_block_entanglement.py --outdir "$OUTDIR" --cache_dir "$CACHEDIR" --block_size 2
-python tech08_morphte_char.py --outdir "$OUTDIR" --cache_dir "$CACHEDIR"
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech01_angle_linear.py --n_qubits 4
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech02_angle_full_entanglement.py --n_qubits 4
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech03_amplitude_encoding.py --n_qubits 4
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech04_word2ket.py --w2k_encoding angle --w2k_cfg_json '{"embedding_dim":8,"order":4,"rank":1,"use_xs":true}' --n_qubits 4
+
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech01_angle_linear.py
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech02_angle_full_entanglement.py
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech03_amplitude_encoding.py
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech04_word2ket.py --w2k_encoding angle --w2k_cfg_json '{"embedding_dim":8,"order":4,"rank":1,"use_xs":true}'
+
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech01_angle_linear.py --n_qubits 12
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech02_angle_full_entanglement.py --n_qubits 12
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech03_amplitude_encoding.py --n_qubits 12
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech04_word2ket.py --w2k_encoding angle --w2k_cfg_json '{"embedding_dim":8,"order":4,"rank":1,"use_xs":true}' --n_qubits 12
+
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech01_angle_linear.py --n_qubits 16
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech02_angle_full_entanglement.py --n_qubits 16
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech03_amplitude_encoding.py --n_qubits 16
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech04_word2ket.py --w2k_encoding angle --w2k_cfg_json '{"embedding_dim":8,"order":4,"rank":1,"use_xs":true}' --n_qubits 16
+
+
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech01_angle_linear.py --n_qubits 4 --L 2
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech02_angle_full_entanglement.py --n_qubits 4 --L 2
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech03_amplitude_encoding.py --n_qubits 4 --L 2
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech04_word2ket.py --w2k_encoding angle --w2k_cfg_json '{"embedding_dim":8,"order":4,"rank":1,"use_xs":true}' --n_qubits 4 --L 2
+
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech01_angle_linear.py --L 2
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech02_angle_full_entanglement.py --L 2
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech03_amplitude_encoding.py --L 2
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech04_word2ket.py --w2k_encoding angle --w2k_cfg_json '{"embedding_dim":8,"order":4,"rank":1,"use_xs":true}' --L 2
+
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech01_angle_linear.py --n_qubits 12 --L 2
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech02_angle_full_entanglement.py --n_qubits 12 --L 2
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech03_amplitude_encoding.py --n_qubits 12 --L 2
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech04_word2ket.py --w2k_encoding angle --w2k_cfg_json '{"embedding_dim":8,"order":4,"rank":1,"use_xs":true}' --n_qubits 12 --L 2
+
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech01_angle_linear.py --n_qubits 16 --L 2
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech02_angle_full_entanglement.py --n_qubits 16 --L 2
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech03_amplitude_encoding.py --n_qubits 16 --L 2
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech04_word2ket.py --w2k_encoding angle --w2k_cfg_json '{"embedding_dim":8,"order":4,"rank":1,"use_xs":true}' --n_qubits 16 --L 2
+
+
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech01_angle_linear.py --n_qubits 4 --L 3
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech02_angle_full_entanglement.py --n_qubits 4 --L 3
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech03_amplitude_encoding.py --n_qubits 4 --L 3
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech04_word2ket.py --w2k_encoding angle --w2k_cfg_json '{"embedding_dim":8,"order":4,"rank":1,"use_xs":true}' --n_qubits 4 --L 3
+
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech01_angle_linear.py --L 3
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech02_angle_full_entanglement.py --L 3
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech03_amplitude_encoding.py --L 3
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech04_word2ket.py --w2k_encoding angle --w2k_cfg_json '{"embedding_dim":8,"order":4,"rank":1,"use_xs":true}' --L 3
+
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech01_angle_linear.py --n_qubits 12 --L 3
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech02_angle_full_entanglement.py --n_qubits 12 --L 3
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech03_amplitude_encoding.py --n_qubits 12 --L 3
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech04_word2ket.py --w2k_encoding angle --w2k_cfg_json '{"embedding_dim":8,"order":4,"rank":1,"use_xs":true}' --n_qubits 12 --L 3
+
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech01_angle_linear.py --n_qubits 16 --L 3
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech02_angle_full_entanglement.py --n_qubits 16 --L 3
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech03_amplitude_encoding.py --n_qubits 16 --L 3
+QNLP_DEBUG=1 QNLP_DEBUG_EVERY=200 python tech04_word2ket.py --w2k_encoding angle --w2k_cfg_json '{"embedding_dim":8,"order":4,"rank":1,"use_xs":true}' --n_qubits 16 --L 3
