@@ -1306,6 +1306,11 @@ def run_and_save(
     append_result_row(row, csv_path=results_csv, json_path=results_json)
     return row
 
+def compute_class_weights(y_train: np.ndarray, n_classes: int) -> np.ndarray:
+    counts = np.bincount(y_train, minlength=n_classes)
+    weights = len(y_train) / (n_classes * counts)
+    return weights / weights.mean()
+
 def _softmax(z):
     z = z - qml.numpy.max(z, axis=1, keepdims=True)
     e = qml.numpy.exp(z)
@@ -1340,6 +1345,7 @@ def run_and_save_vqc(
     lr: float = 0.05,
     batch_size: int = 64,
     seed: int = 0,
+    use_class_weights: bool = False,
     extra_fields: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
@@ -1368,6 +1374,12 @@ def run_and_save_vqc(
     y_val = np.asarray(y_val, dtype=int)
     y_test = np.asarray(y_test, dtype=int)
 
+    if use_class_weights:
+        class_weights = compute_class_weights(y_train, n_classes)
+        class_weights_qml = qml.numpy.array(class_weights, requires_grad=False)
+    else:
+        class_weights_qml = qml.numpy.ones(n_classes, requires_grad=False)
+
     def forward_batch(Xb, wb, Wb, bb):
         feats = []
         for i in range(Xb.shape[0]):
@@ -1376,23 +1388,36 @@ def run_and_save_vqc(
         F = qml.numpy.stack(feats, axis=0)  # (B, d)
         return F @ Wb + bb
 
-    def loss_fn(wb, Wb, bb, Xb, yb):
+    def loss_fn(wb, Wb, bb, Xb, yb, l2=1e-3):
         logits = forward_batch(Xb, wb, Wb, bb)
         probs = _softmax(logits)
         eps = 1e-12
         idx = qml.numpy.arange(len(yb))
         p = probs[idx, yb]
-        return qml.numpy.mean(-qml.numpy.log(qml.numpy.clip(p, eps, 1.0)))
+
+        sample_losses = -qml.numpy.log(qml.numpy.clip(p, eps, 1.0))
+        sample_weights = qml.numpy.array([class_weights_qml[int(y)] for y in yb])
+        ce = qml.numpy.mean(sample_losses * sample_weights)
+
+        wd = l2 * qml.numpy.sum(Wb * Wb)  # L2 on W only
+        return ce + wd
 
     best_val = float("inf")
     best_w = None
     best_W = None
     best_b = None
+    best_acc = -1.0
+    patience = 10  # numero di log senza miglioramenti
+    min_delta = 1e-4  # miglioramento minimo richiesto su acc (evita falsi ✓)
+    no_improve = 0
 
     # small fixed val subset for cheap tracking
-    val_idx = rng.choice(len(X_val_in), size=min(512, len(X_val_in)), replace=False)
+    val_idx = rng.choice(len(X_val_in), size=min(1024, len(X_val_in)), replace=False)
     Xv = X_val_in[val_idx]
     yv = y_val[val_idx]
+
+    log_every = 10
+    t0 = time.time()
 
     # Training loop
     n = X_train_in.shape[0]
@@ -1401,15 +1426,56 @@ def run_and_save_vqc(
         Xb = X_train_in[idx]
         yb = y_train[idx]
 
-        (w, W, b), train_cost = opt.step_and_cost(lambda ww, WW, bb: loss_fn(ww, WW, bb, Xb, yb), w, W, b)
+        (w, W, b), train_cost = opt.step_and_cost(
+            lambda ww, WW, bb: loss_fn(ww, WW, bb, Xb, yb),
+            w, W, b
+        )
 
-        if (step + 1) % 10 == 0:
+        if (step + 1) % log_every == 0:
+            # loss su subset validation
             vcost = float(loss_fn(w, W, b, Xv, yv))
-            if vcost < best_val:
-                best_val = vcost
+
+            # accuracy su subset validation (stesso Xv,yv)
+            logits_v = forward_batch(Xv, w, W, b)
+            pred_v = np.argmax(np.asarray(logits_v), axis=1)
+            acc_v = float((pred_v == np.asarray(yv)).mean())
+
+            # criterio di miglioramento su accuracy
+            improved = acc_v > (best_acc + min_delta)
+
+            if improved:
+                best_acc = acc_v
+                best_val = vcost  # opzionale: solo per log
                 best_w = qml.numpy.array(w, requires_grad=False)
                 best_W = qml.numpy.array(W, requires_grad=False)
                 best_b = qml.numpy.array(b, requires_grad=False)
+                no_improve = 0
+            else:
+                no_improve += 1
+
+            elapsed = time.time() - t0
+            w_norm = float(np.linalg.norm(np.array(w).ravel()))
+            W_norm = float(np.linalg.norm(np.array(W).ravel()))
+            b_norm = float(np.linalg.norm(np.array(b).ravel()))
+
+            print(
+                f"[{step + 1:6d}/{int(steps)}] "
+                f"train={float(train_cost):.6f}  val={vcost:.6f}  acc={acc_v:.4f}  "
+                f"best_acc={best_acc:.4f}  "
+                f"{'✓' if improved else ' '}  "
+                f"pat={no_improve}/{patience}  "
+                f"||w||={w_norm:.3e} ||W||={W_norm:.3e} ||b||={b_norm:.3e}  "
+                f"t={elapsed:.1f}s"
+            )
+
+            # EARLY STOPPING
+            if no_improve >= patience:
+                print(
+                    f"Early stopping at step {step + 1}: "
+                    f"no val-acc improvement for {patience} logs. "
+                    f"Best acc={best_acc:.4f} (val loss at best={best_val:.6f})."
+                )
+                break
 
     if best_w is not None:
         w, W, b = best_w, best_W, best_b

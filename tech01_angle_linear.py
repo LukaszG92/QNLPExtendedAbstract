@@ -14,6 +14,7 @@ def main():
     p.add_argument("--vqc_lr", type=float, default=0.05)
     p.add_argument("--vqc_batch", type=int, default=64)
     p.add_argument("--vqc_var_layers", type=int, default=1)
+    p.add_argument("--vqc_class_weights", action="store_true", help="Enable class weighting in VQC loss")
     args = p.parse_args()
     cfg = cfg_from_args(args)
 
@@ -73,6 +74,7 @@ def main():
             lr=args.vqc_lr,
             batch_size=args.vqc_batch,
             seed=cfg.random_state,
+            use_class_weights=args.vqc_class_weights
         )
     else:
         qnode = make_qnode_angle(
