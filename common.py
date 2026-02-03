@@ -557,16 +557,16 @@ def evaluate_technique(
     acc_test_list, f1_test_list = [], []
     encoding_times = []
 
+    # Encode (with timing)
+    Xtr_enc, enc_time_tr = encode_dataset(qnode, X_train)
+    Xva_enc, _ = encode_dataset(qnode, X_val)
+    Xte_enc, _ = encode_dataset(qnode, X_test)
+    encoding_times.append(enc_time_tr)
+
     print(f"\nRunning {cfg.n_runs} evaluations...")
     for r in range(cfg.n_runs):
         # Set seed for this run
         np.random.seed(cfg.random_state + r)
-
-        # Encode (with timing)
-        Xtr_enc, enc_time_tr = encode_dataset(qnode, X_train)
-        Xva_enc, _ = encode_dataset(qnode, X_val)
-        Xte_enc, _ = encode_dataset(qnode, X_test)
-        encoding_times.append(enc_time_tr)
 
         # Train classifier
         if cfg.clf_type == "linearsvc":
