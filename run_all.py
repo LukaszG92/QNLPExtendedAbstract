@@ -37,6 +37,7 @@ def main():
     print("=" * 70)
 
     experiments = []
+    workers = 12
 
     # Tech1: Angle + Linear (q=[4,6,8], L=[1,2,3])
     print("\n📋 Tech1: Angle + Linear")
@@ -67,7 +68,7 @@ def main():
         experiments.append(("tech4_word2ket_amplitude.py", q, None))
 
     print(f"\n📊 Total experiments: {len(experiments)}")
-    print(f"⚙️  Workers: 10 (parallel)")
+    print(f"⚙️  Workers: {workers} (parallel)")
     print(f"⏱️  Estimated time: ~25-35 minutes")
     print("=" * 70)
 
@@ -79,9 +80,8 @@ def main():
     print("\n🚀 Starting...\n")
     start_time = time.time()
 
-    # Run in parallel with 12 workers
     results = []
-    with ProcessPoolExecutor(max_workers=12) as executor:
+    with ProcessPoolExecutor(max_workers=workers) as executor:
         futures = []
         for script, q, L in experiments:
             future = executor.submit(run_experiment, script, q, L)
