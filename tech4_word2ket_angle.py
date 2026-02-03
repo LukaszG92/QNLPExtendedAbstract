@@ -204,7 +204,7 @@ def main() -> None:
 
     row = run_and_save(
         technique_name=(
-            f"(4) word2ket | enc={args.w2k_encoding} | readout={readout} | "
+            f"(4) word2ket | enc={args.w2k_encoding} | | L={cfg.L} | "
             f"ent={ent} | topo={topo} | q={q} | clf={clf_kind}"
         ),
         qnode=qnode,
