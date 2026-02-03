@@ -1,11 +1,14 @@
 """
 Tech4: Word2Ket Amplitude Encoding
+FIXED: Uses consistent vocabulary across train/val/test splits
 """
 import argparse
 import time
 from common import (
     ExperimentConfig,
     load_tweeteval_sentiment,
+    build_word2ket_vocabulary,
+    create_word2ket_embedder,
     word2ket_embed_texts,
     make_qnode_amplitude,
     evaluate_technique,
@@ -53,24 +56,54 @@ def main():
 
     # Preprocess with Word2Ket
     print("Preprocessing (Word2Ket embeddings)...")
-    w2k_cfg = {
-        "embedding_dim": k,  # For amplitude, embedding_dim = 2^q
-        "order": args.w2k_order,
-        "rank": args.w2k_rank,
-        "use_xs": True,
-    }
 
+    # CRITICAL FIX: Build vocabulary ONCE on training data
+    print("  Step 1: Building vocabulary from training data...")
+    token2id = build_word2ket_vocabulary(list(data["X_text_train"]))
+
+    # Create embedder ONCE
+    print("  Step 2: Creating Word2Ket embedder...")
+    embedder = create_word2ket_embedder(
+        vocab_size=len(token2id),
+        embedding_dim=k,  # For amplitude encoding, embedding_dim = 2^q
+        order=args.w2k_order,
+        rank=args.w2k_rank,
+        use_xs=True,
+    )
+
+    # Embed all splits using THE SAME vocabulary and embedder
+    print("  Step 3: Embedding train/val/test with shared vocabulary...")
     t0 = time.time()
+
     X_train = word2ket_embed_texts(
-        list(data["X_text_train"]), "amplitude", args.q, w2k_cfg, cfg.random_state
+        list(data["X_text_train"]),
+        "amplitude",
+        args.q,
+        token2id,  # ✓ Same vocabulary
+        embedder,  # ✓ Same embedder
+        cfg.random_state
     )
+
     X_val = word2ket_embed_texts(
-        list(data["X_text_val"]), "amplitude", args.q, w2k_cfg, cfg.random_state
+        list(data["X_text_val"]),
+        "amplitude",
+        args.q,
+        token2id,  # ✓ Same vocabulary
+        embedder,  # ✓ Same embedder
+        cfg.random_state
     )
+
     X_test = word2ket_embed_texts(
-        list(data["X_text_test"]), "amplitude", args.q, w2k_cfg, cfg.random_state
+        list(data["X_text_test"]),
+        "amplitude",
+        args.q,
+        token2id,  # ✓ Same vocabulary
+        embedder,  # ✓ Same embedder
+        cfg.random_state
     )
+
     preproc_time = time.time() - t0
+    print(f"  ✓ Embedding complete ({preproc_time:.2f}s)")
 
     # Create quantum circuit
     print("Creating quantum circuit...")
@@ -101,6 +134,7 @@ def main():
             "k": k,
             "w2k_order": args.w2k_order,
             "w2k_rank": args.w2k_rank,
+            "vocab_size": len(token2id),
         },
     )
 

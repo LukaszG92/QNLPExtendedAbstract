@@ -157,14 +157,84 @@ def hashing_amp_vectors(
 # Word2Ket Embedding
 # ============================================================================
 
+def build_word2ket_vocabulary(texts: list[str]) -> Dict[str, int]:
+    """
+    Build vocabulary from training texts ONCE.
+    This ensures consistent token IDs across train/val/test splits.
+
+    Args:
+        texts: List of training texts
+
+    Returns:
+        Dictionary mapping tokens to integer IDs
+    """
+    token2id = {"<UNK>": 0}
+    for text in texts:
+        for tok in text.lower().split():
+            if tok not in token2id:
+                token2id[tok] = len(token2id)
+
+    print(f"  Built Word2Ket vocabulary: {len(token2id)} tokens")
+    return token2id
+
+
+def create_word2ket_embedder(
+    vocab_size: int,
+    embedding_dim: int,
+    order: int = 4,
+    rank: int = 1,
+    use_xs: bool = True,
+):
+    """
+    Create Word2Ket embedder with specified parameters.
+
+    Args:
+        vocab_size: Size of vocabulary (number of unique tokens)
+        embedding_dim: Dimension of embeddings (q for angle, 2^q for amplitude)
+        order: Order of tensor decomposition
+        rank: Rank of tensor decomposition
+        use_xs: Whether to use EmbeddingKetXS (faster) or EmbeddingKet
+
+    Returns:
+        Word2Ket embedder instance
+    """
+    EmbedClass = word2ket.EmbeddingKetXS if use_xs else word2ket.EmbeddingKet
+    embedder = EmbedClass(
+        num_embeddings=vocab_size,
+        embedding_dim=embedding_dim,
+        order=order,
+        rank=rank,
+    )
+    print(f"  Created Word2Ket embedder: dim={embedding_dim}, order={order}, rank={rank}")
+    return embedder
+
+
 def word2ket_embed_texts(
     texts: list[str],
     mode: Literal["angle", "amplitude"],
     q: int,
-    w2k_cfg: Optional[Dict[str, Any]] = None,
+    token2id: Dict[str, int],
+    embedder,
     seed: int = 0,
 ) -> np.ndarray:
-    """Embed texts using Word2Ket"""
+    """
+    Embed texts using pre-built Word2Ket vocabulary and embedder.
+
+    CRITICAL: This function now requires a pre-built vocabulary (token2id) and embedder
+    to ensure consistency across train/val/test splits. The vocabulary should be built
+    ONCE on the training set using build_word2ket_vocabulary().
+
+    Args:
+        texts: List of texts to embed
+        mode: "angle" or "amplitude" encoding
+        q: Number of qubits
+        token2id: Pre-built vocabulary (from build_word2ket_vocabulary)
+        embedder: Pre-built Word2Ket embedder (from create_word2ket_embedder)
+        seed: Random seed for reproducibility
+
+    Returns:
+        Embedded vectors (N x q for angle, N x 2^q for amplitude)
+    """
     import random
     import torch
 
@@ -173,36 +243,8 @@ def word2ket_embed_texts(
     np.random.seed(seed)
     torch.manual_seed(seed)
 
-    w2k_cfg = w2k_cfg or {}
-
-    # Build vocabulary and embedder
-    if "_w2k_token2id" not in w2k_cfg:
-        token2id = {"<UNK>": 0}
-        for text in texts:
-            for tok in text.lower().split():
-                if tok not in token2id:
-                    token2id[tok] = len(token2id)
-
-        embedding_dim = w2k_cfg.get("embedding_dim", q)
-        use_xs = w2k_cfg.get("use_xs", True)
-        order = w2k_cfg.get("order", 4)
-        rank = w2k_cfg.get("rank", 1)
-
-        EmbedClass = word2ket.EmbeddingKetXS if use_xs else word2ket.EmbeddingKet
-        embedder = EmbedClass(
-            num_embeddings=len(token2id),
-            embedding_dim=embedding_dim,
-            order=order,
-            rank=rank,
-        )
-
-        w2k_cfg["_w2k_token2id"] = token2id
-        w2k_cfg["_w2k_embedder"] = embedder
-        w2k_cfg["_w2k_embedding_dim"] = embedding_dim
-    else:
-        token2id = w2k_cfg["_w2k_token2id"]
-        embedder = w2k_cfg["_w2k_embedder"]
-        embedding_dim = w2k_cfg["_w2k_embedding_dim"]
+    # Get embedding dimension
+    embedding_dim = embedder.embedding_dim
 
     # Encode texts
     n = len(texts)
@@ -213,6 +255,7 @@ def word2ket_embed_texts(
             tokens = text.lower().split()
             if not tokens:
                 continue
+            # Use pre-built vocabulary, map unknown tokens to <UNK> (ID=0)
             ids = [token2id.get(tok, 0) for tok in tokens]
             tid = torch.tensor(ids, dtype=torch.long)
             w = embedder(tid)
